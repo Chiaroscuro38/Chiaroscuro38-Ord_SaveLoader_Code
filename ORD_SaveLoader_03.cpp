@@ -1,4 +1,4 @@
-// ORD_SaveLoader_03.cpp : ÄÜ¼Ö ÀÀ¿ë ÇÁ·Î±×·¥¿¡ ´ëÇÑ ÁøÀÔÁ¡À» Á¤ÀÇÇÕ´Ï´Ù.
+// ORD_SaveLoader_03.cpp : ì½˜ì†” ì‘ìš© í”„ë¡œê·¸ë¨ì— ëŒ€í•œ ì§„ì…ì ì„ ì •ì˜í•©ë‹ˆë‹¤.
 //
 
 #include "stdafx.h"
@@ -10,188 +10,97 @@
 #define new DEBUG_NEW
 #endif
 
+// í”„ë¡œê·¸ë¨ ì‹¤í–‰ ì´ˆê¸°
+CString StartProgram();
+bool IsSaveBeforeCheck();
 
-// À¯ÀÏÇÑ ÀÀ¿ë ÇÁ·Î±×·¥ °³Ã¼ÀÔ´Ï´Ù.
+// ìœ ì € ì •ë³´ ê°€ì ¸ì˜¤ê¸°
+void InitUserData(CString& fullPath);
+void Select_ORDSaveFile(CString& str);
+bool Save_UserData();
 
+bool Load_UserData();
+
+// ìœ ì € ì •ë³´ ê°±ì‹  ë° ì½”ë“œ ì €ì¥
+bool GetNewestData();
+bool Load_ORDSaveFile(CString& FullPath);
+bool Save_UserInfo();
+
+
+
+// ìœ ì¼í•œ ì‘ìš© í”„ë¡œê·¸ë¨ ê°œì²´ì…ë‹ˆë‹¤.
 CWinApp theApp;
 
 using namespace std;
 
 int Error();
 
-bool SaveCheck();
+// í”„ë¡œê·¸ë¨ì´ ì¡´ì¬í•˜ëŠ” ìœ„ì¹˜
+CString path_ProgramExist; 
+CString path_ORDSaveFile; 
 
-bool Select(CString& str);
+// ì €ì¥ë  ì •ë³´ë“¤
+CString Save_SaveFileName;
+CString Save_UserID;	 
+int		Save_ClearCount;  
 
-void Load(CString* FullPath);
 
-void Save();
-
-CString strBasePath; // ÇÁ·Î±×·¥ ÀúÀå °æ·Î
-CString strPath; // ¼¼ÀÌºêµ¥ÀÌÅÍ ÀúÀå °æ·Î
-CString strName; // ¹öÀü + ÇÃ·¹ÀÌ¾î ÀÌ¸§
-CString strID;	 // ÇÃ·¹ÀÌ¾î ÀÌ¸§
-int		clearSaves;  // Å¬¸®¾î È½¼ö
 
 int main()
 {
-	// ÇöÀç ÇÁ·Î±×·¥ °æ·Î
-	TCHAR szFilePath[MAX_PATH]{};
-	GetCurrentDirectory(MAX_PATH, szFilePath);
-	strBasePath = szFilePath;
+	// í˜„ì¬ í”„ë¡œê·¸ë¨ ê²½ë¡œ
+	path_ProgramExist = StartProgram();
+	bool IsSucces = true; // ì˜¤ë¥˜ì²´í¬
 
-	if (SaveCheck())
+	// ìœ ì €ì˜ ì •ë³´ë¥¼ ê°€ì ¸ì˜µë‹ˆë‹¤.
+	bool IsFirstStart = IsSaveBeforeCheck();
+	if (IsFirstStart == true)
 	{
-		// ÃÖÃÊ ½ÇÇà
-		cout << endl << "ÃÖÃÊ·Î ¼±ÅÃÇÒ ¼¼ÀÌºê ÆÄÀÏÀ» Ã£¾Æ ÁÖ¼¼¿ä" << endl << endl;
+		// ìµœì´ˆ ì‹¤í–‰ì‹œ ORD ì„¸ì´ë¸Œì˜ ë°ì´í„° ê¸°ë°˜ìœ¼ë¡œ ìœ ì €ë°ì´í„°ë¥¼ ë¶ˆëŸ¬ì˜µë‹ˆë‹¤.
+
+		cout << "ì—°ë™í•  ì„¸ì´ë¸Œ ë°ì´í„°ë¥¼ ì„ íƒí•˜ì„¸ìš”. (Ord_SaveFile.txt)" << endl << endl;
 		
-		// ÆÄÀÏ ¼±ÅÃ
+		// íŒŒì¼ ì„ íƒ
 		CString fullPath;
-		if (!Select(fullPath)) return Error(); // ÇÁ·Î±×·¥ ½ÇÇà½ÇÆĞ½Ã Á¾·á
+		Select_ORDSaveFile(fullPath);
+		if (fullPath.IsEmpty() == true) return Error();
 
-		// ¼±ÅÃÇÑ ÆÄÀÏ ÀüÃ¼ °æ·Î
-		wcout << "¼±ÅÃ : " << (const TCHAR*)fullPath << endl;
-
-		// °æ·Î ¹®ÀÚ¿­·Î ¸¸µé±â
-		TCHAR szFullPath[MAX_PATH]{};
-		TCHAR* pFP = fullPath.GetBuffer(fullPath.GetLength());
-		_tcscpy_s(szFullPath, MAX_PATH, pFP);
-		fullPath.ReleaseBuffer();
-
-		// ÆÄÀÏÀÌ ÀÖ´Â °æ·Î
-		PathRemoveFileSpec(szFullPath);
-		int pathSize = _tcslen(szFullPath);
-		strPath = fullPath.Left(pathSize + 1);
-		wcout << "°æ·Î : " << (const TCHAR*)strPath << endl;
-
-		// ÆÄÀÏ ÀÌ¸§
-		CString strRight = fullPath.Right(fullPath.GetLength() - pathSize - 1);
-		strRight.TrimRight(L".txt");
-		wcout << "ÆÄÀÏ : " << (const TCHAR*)strRight << endl << endl;
-
-		// ÀÌ¸§ ºĞ¸®ÇÏ±â
-		CString strTemp;
-		int i = 0;
-		while (FALSE != AfxExtractSubString(strTemp, strRight, i++, '_')) {
-			if (1 == i) {
-				strName = strTemp;
-			}
-			else if (2 == i) {
-				strID = strTemp;
-				strName = strName + '_' + strTemp + '_';
-			}
-			else if (3 == i) {
-				clearSaves = _ttoi(strTemp);
-			}
-		}
+		// ì„ íƒí•œ íŒŒì¼ì„ ê¸°ë°˜ìœ¼ë¡œ ìµœì´ˆ ìœ ì € ì •ë³´ë¥¼ ìƒì„±ìŠµë‹ˆë‹¤.
+		InitUserData(fullPath);
 		
-		wcout << "ÀÌ¸§ : " << (const TCHAR*)strName << endl;
-		wcout << "È½¼ö : " << clearSaves << endl;
-		
-		Save();
+		IsSucces = Save_UserData();
+		if (IsSucces == false) return Error();
+
 	}
-	else
+	else if (IsFirstStart == false)
 	{
-		// ÀúÀåµÈ ¹®ÀÚ¿­À» ºÒ·¯¿Í¼­ ÇÁ·Î±×·¥ ½ÇÇà
-		CString Path = strBasePath;
-		Path += "\\save.data";
-		HANDLE hFile = CreateFileW(Path, GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+		// ìœ ì €ë°ì´í„°ë¥¼ ë¶ˆëŸ¬ì˜µë‹ˆë‹¤.
 
-		if (INVALID_HANDLE_VALUE == hFile)
-		{
-			return Error();
-		}
-		
-		DWORD dwbyte = 0;
-
-		int iSize;
-		TCHAR szPath[MAX_PATH]{};
-		TCHAR szFile[MAX_PATH]{};
-		TCHAR szID[MAX_PATH]{};
-
-		ReadFile(hFile, &iSize, sizeof(int), &dwbyte, nullptr);
-		ReadFile(hFile, szPath, iSize, &dwbyte, nullptr);
-		ReadFile(hFile, &iSize, sizeof(int), &dwbyte, nullptr);
-		ReadFile(hFile, szFile, iSize, &dwbyte, nullptr);
-		ReadFile(hFile, &iSize, sizeof(int), &dwbyte, nullptr);
-		ReadFile(hFile, szID, iSize, &dwbyte, nullptr);
-		ReadFile(hFile, &clearSaves, sizeof(int), &dwbyte, nullptr);
-
-		CloseHandle(hFile);
-
-		strPath = szPath;
-		strName = szFile;
-		strID = szID;
+		IsSucces = Load_UserData();
+		if (IsSucces == false)  return Error();
 	}
 	
-	// °æ·Î °Ë»ö
-	CFileFind finder;
-	CString newPath = strPath;
-	newPath += "*.txt";
 
-	BOOL bExist = finder.FindFile(newPath);
-	if (!bExist) return Error(); //°æ·Î°¡ À¯È¿ÇÏÁö ¾ÊÀ½
 
-	//iSaves
-
-	while (bExist) {
-		bExist = finder.FindNextFile();
-
-		// ÀÌ¸§ ºĞ¸®ÇÏ±â
-		CString strTemp = finder.GetFileTitle();
-		wcout << (const TCHAR*)strTemp << endl;
-
-		//// ÆÄÀÏ ÀÌ¸§
-		strTemp.TrimLeft(strName);
-		strTemp.TrimRight(L".txt");
-		int iCurSaves = _ttoi(strTemp);
-
-		wcout << iCurSaves << endl;
-
-		if (clearSaves <= iCurSaves)
-			clearSaves = iCurSaves;
-	}
+	// ìœ ì €ì •ë³´ë¥¼ ê¸°ë°˜ìœ¼ë¡œ ìµœì‹  ORD ì„¸ì´ë¸Œë¥¼ ì°¾ìŠµë‹ˆë‹¤.
+	IsSucces = GetNewestData();
+	if (IsSucces == false)  return Error();
 	
-	CString szFullPath = strPath + strName; 
+	CString szFullPath = path_ORDSaveFile + Save_SaveFileName; 
 
-	CString Temp;      
-	Temp.Format(_T("%d"), clearSaves);
-
-	szFullPath += Temp;
+	CString stdSaveCount;
+	stdSaveCount.Format(_T("%d"), Save_ClearCount);
+	szFullPath += stdSaveCount;
 	szFullPath += ".txt";
 
-	Load(&szFullPath);
-	
-	// µ¥ÀÌÅÍ ÀúÀå
-	CString Path = strBasePath;
-	Path += "\\À¯ÀúÁ¤º¸.txt";
-	HANDLE hFile = CreateFile(Path.GetString(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+	IsSucces = Load_ORDSaveFile(szFullPath);
+	if (IsSucces == false)  return Error();
 
-	if (INVALID_HANDLE_VALUE == hFile){
-		return Error();
-	}
-	
-	// °æ·Î ¸¸µé±â	
-	CString saves;
-	saves.Format(_T("%d"), clearSaves);
 
-	CString text = L"ID : ";
-	text += strID;
-	text += L" / Clears : ";
-	text += saves;
-
-	TCHAR szText[MAX_PATH]{};
+	// ì‚¬ìš©ìê°€ í™•ì¸ê°€ëŠ¥í•œ ê¸°ë¡ì„ ì €ì¥í•©ë‹ˆë‹¤
+	IsSucces = Save_UserInfo();
+	if (IsSucces == false)  return Error();
 	
-	TCHAR* pP = text.GetBuffer(text.GetLength());
-	_tcscpy_s(szText, MAX_PATH, pP);
-	text.ReleaseBuffer();
-	
-	DWORD dwbyte = 0;
-	int iSize = (MAX_PATH * sizeof(TCHAR));	
-	WriteFile(hFile, szText, iSize, &dwbyte, nullptr);
-	
-	CloseHandle(hFile);
-
 	return Error();
 }
 
@@ -203,153 +112,286 @@ int Error()
 
 	if (hModule != nullptr)
 	{
-		// MFC¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù. ÃÊ±âÈ­ÇÏÁö ¸øÇÑ °æ¿ì ¿À·ù¸¦ ÀÎ¼âÇÕ´Ï´Ù.
+		// ì´ˆê¸°í™”í•©ë‹ˆë‹¤. ì´ˆê¸°í™”í•˜ì§€ ëª»í•œ ê²½ìš° ì˜¤ë¥˜ë¥¼ ì¸ì‡„í•©ë‹ˆë‹¤.
 		if (!AfxWinInit(hModule, nullptr, ::GetCommandLine(), 0))
 		{
-			// TODO: ¿À·ù ÄÚµå¸¦ ÇÊ¿ä¿¡ µû¶ó ¼öÁ¤ÇÕ´Ï´Ù.
-			wprintf(L"½É°¢ÇÑ ¿À·ù: MFC¸¦ ÃÊ±âÈ­ÇÏÁö ¸øÇß½À´Ï´Ù.\n");
+			// TODO: ì˜¤ë¥˜ ì½”ë“œë¥¼ í•„ìš”ì— ë”°ë¼ ìˆ˜ì •í•©ë‹ˆë‹¤.
+			wprintf(L"ì‹¬ê°í•œ ì˜¤ë¥˜: MFCë¥¼ ì´ˆê¸°í™”í•˜ì§€ ëª»í–ˆìŠµë‹ˆë‹¤.\n");
 			nRetCode = 1;
 		}
 		else
 		{
-			// TODO: ÀÀ¿ë ÇÁ·Î±×·¥ÀÇ µ¿ÀÛÀº ¿©±â¿¡¼­ ÄÚµùÇÕ´Ï´Ù.
+			// TODO: ì‘ìš© í”„ë¡œê·¸ë¨ì˜ ë™ì‘ì€ ì—¬ê¸°ì—ì„œ ì½”ë”©í•©ë‹ˆë‹¤.
 		}
 	}
 	else
 	{
-		// TODO: ¿À·ù ÄÚµå¸¦ ÇÊ¿ä¿¡ µû¶ó ¼öÁ¤ÇÕ´Ï´Ù.
-		wprintf(L"½É°¢ÇÑ ¿À·ù: GetModuleHandle ½ÇÆĞ\n");
+		// TODO: ì˜¤ë¥˜ ì½”ë“œë¥¼ í•„ìš”ì— ë”°ë¼ ìˆ˜ì •í•©ë‹ˆë‹¤.
+		wprintf(L"ì‹¬ê°í•œ ì˜¤ë¥˜: GetModuleHandle ì‹¤íŒ¨\n");
 		nRetCode = 1;
 	}
 
 	return nRetCode;
 }
 
-bool SaveCheck()
+CString StartProgram()
 {
-	// °æ·Î °Ë»ö
+	TCHAR szFilePath[MAX_PATH]{};
+	GetCurrentDirectory(MAX_PATH, szFilePath);
+	CString path = szFilePath;
+
+	return path;
+}
+
+bool IsSaveBeforeCheck()
+{
+	// ê²½ë¡œ ê²€ìƒ‰
 	CFileFind finder;
-	CString newPath = strBasePath;
+	CString newPath = path_ProgramExist;
 	newPath += "\\*.data";
+
 	BOOL bExist = finder.FindFile(newPath);
 
-	//°æ·Î°¡ À¯È¿ÇÏÁö ¾ÊÀ½
+	//ê²½ë¡œê°€ ìœ íš¨í•˜ì§€ ì•ŠìŒ
 	if (!bExist) {
-		cout << "ÃÖÃÊ ½ÇÇà\n";
+		cout << "ìµœì´ˆë¡œ ì‹¤í–‰í–ˆìŠµë‹ˆë‹¤."<< endl << endl;
 		return true;
 	}
 	while (bExist) {
-		cout << "ÃÖÃÊ ½ÇÇà ¾Æ´Ô\n";
+		cout << "ì´ì „ ì‹¤í–‰ ë°ì´í„°ê°€ ì¡´ì¬í•©ë‹ˆë‹¤." << endl << endl;
 		return false;
 	}
 
 	return false;
 }
 
-bool Select(CString& str)
+void InitUserData(CString& fullPath)
+{
+	wcout << "ì„ íƒ : " << (const TCHAR*)fullPath << endl;
+
+	// ê²½ë¡œ ë¬¸ìì—´ë¡œ ë§Œë“¤ê¸°
+	TCHAR szFullPath[MAX_PATH]{};
+	TCHAR* pFP = fullPath.GetBuffer(fullPath.GetLength());
+	_tcscpy_s(szFullPath, MAX_PATH, pFP);
+	fullPath.ReleaseBuffer();
+
+	// íŒŒì¼ì´ ìˆëŠ” ê²½ë¡œ
+	PathRemoveFileSpec(szFullPath);
+	int pathSize = _tcslen(szFullPath);
+	path_ORDSaveFile = fullPath.Left(pathSize + 1);
+	wcout << "ê²½ë¡œ : " << (const TCHAR*)path_ORDSaveFile << endl;
+
+	// íŒŒì¼ ì´ë¦„
+	CString strRight = fullPath.Right(fullPath.GetLength() - pathSize - 1);
+	strRight.TrimRight(L".txt");
+	wcout << "íŒŒì¼ : " << (const TCHAR*)strRight << endl << endl;
+
+	// ì´ë¦„ ë¶„ë¦¬í•˜ê¸°
+	CString strTemp;
+	int i = 0;
+	while (FALSE != AfxExtractSubString(strTemp, strRight, i++, '_')) {
+		if (1 == i) {
+			Save_SaveFileName = strTemp;
+		}
+		else if (2 == i) {
+			Save_UserID = strTemp;
+			Save_SaveFileName = Save_SaveFileName + '_' + strTemp + '_';
+		}
+		else if (3 == i) {
+			Save_ClearCount = _ttoi(strTemp);
+		}
+	}
+
+	wcout << "ì´ë¦„ : " << (const TCHAR*)Save_SaveFileName << endl;
+	wcout << "íšŸìˆ˜ : " << Save_ClearCount << endl;
+}
+
+void Select_ORDSaveFile(CString& refStr)
 {
 	CFileDialog dlg(TRUE, L"txt", L"ord_name_save", OFN_OVERWRITEPROMPT);
 
-	// °æ·Î ¸¸µé±â
+	// ê²½ë¡œ ë§Œë“¤ê¸°
 	TCHAR szFilePath[MAX_PATH]{};
 	GetCurrentDirectory(MAX_PATH, szFilePath);
 	lstrcat(szFilePath, L"\\");
 
-	// ÆÄÀÏ °æ·Î ¼³Á¤ ¹× ½ÇÇà
+	// íŒŒì¼ ê²½ë¡œ ì„¤ì • ë° ì‹¤í–‰
 	dlg.m_ofn.lpstrInitialDir = szFilePath;	
 	if (IDOK == dlg.DoModal())
 	{
-		str = dlg.GetPathName();
-		return true;
+		refStr = dlg.GetPathName();
 	}
-
-	return false;
 }
 
-void Save()
+bool Save_UserData()
 {
-	CString filePath = strBasePath;
+	CString filePath = path_ProgramExist;
 	filePath += "\\save.data";
-	
+
 	HANDLE hFile = CreateFile(filePath.GetString(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-	
+
 	if (INVALID_HANDLE_VALUE == hFile)
 	{
-		return;
+		return false;
 	}
-	
-	// °æ·Î ¸¸µé±â
+
+	// ê²½ë¡œ ë§Œë“¤ê¸°
 	TCHAR szPath[MAX_PATH]{};
 	TCHAR szFile[MAX_PATH]{};
 	TCHAR szID[MAX_PATH]{};
 
 	// szPath
-	TCHAR* pP = strPath.GetBuffer(strPath.GetLength());
+	TCHAR* pP = path_ORDSaveFile.GetBuffer(path_ORDSaveFile.GetLength());
 	_tcscpy_s(szPath, MAX_PATH, pP);
-	strPath.ReleaseBuffer();
+	path_ORDSaveFile.ReleaseBuffer();
 
 	// szFile
-	pP		  = strName.GetBuffer(strName.GetLength());
+	pP = Save_SaveFileName.GetBuffer(Save_SaveFileName.GetLength());
 	_tcscpy_s(szFile, MAX_PATH, pP);
-	strName.ReleaseBuffer();
+	Save_SaveFileName.ReleaseBuffer();
 
 	// szID
-	pP		  = strID.GetBuffer(strID.GetLength());
+	pP = Save_UserID.GetBuffer(Save_UserID.GetLength());
 	_tcscpy_s(szID, MAX_PATH, pP);
-	strID.ReleaseBuffer();
+	Save_UserID.ReleaseBuffer();
 
 	DWORD dwbyte = 0;
 	int iSize = (MAX_PATH * sizeof(TCHAR));
 
-	// °æ·Î ÀúÀå
+	// ê²½ë¡œ ì €ì¥
 	WriteFile(hFile, &iSize, sizeof(int), &dwbyte, nullptr);
 	WriteFile(hFile, szPath, iSize, &dwbyte, nullptr);
 
-	// ÀÌ¸§ ÀúÀå
+	// ì´ë¦„ ì €ì¥
 	WriteFile(hFile, &iSize, sizeof(int), &dwbyte, nullptr);
 	WriteFile(hFile, szFile, iSize, &dwbyte, nullptr);
 
-	// ID ÀúÀå
+	// ID ì €ì¥
 	WriteFile(hFile, &iSize, sizeof(int), &dwbyte, nullptr);
 	WriteFile(hFile, szID, iSize, &dwbyte, nullptr);
 
-	// È½¼ö ÀúÀå
-	WriteFile(hFile, &clearSaves, sizeof(int), &dwbyte, nullptr);
+	// íšŸìˆ˜ ì €ì¥
+	WriteFile(hFile, &Save_ClearCount, sizeof(int), &dwbyte, nullptr);
 
 	CloseHandle(hFile);
 
-	return;
+	return true;
 }
 
-void Load(CString* FullPath)
+bool Load_UserData()
 {
-	CString& fullpath = *FullPath;
+	// í”„ë¡œê·¸ë¨ì˜ ì„¸ì´ë¸Œ ë°ì´í„°ë¡œ ìœ ì €ì •ë³´ë¥¼ ì°¾ì•„ì˜´ 
+	CString Path = path_ProgramExist;
+	Path += "\\save.data";
+	HANDLE hFile = CreateFileW(Path, GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 
-	wcout << "°æ·Î : " << (const TCHAR*)fullpath << endl << endl;
+	if (INVALID_HANDLE_VALUE == hFile)
+	{
+		return false;
+	}
+
+	DWORD dwbyte = 0;
+
+	// ê¸¸ì´ ë“± ìˆ«ì ë°ì´í„°
+	int iTemp; 
+
+	TCHAR szPath[MAX_PATH]{};
+	TCHAR szFile[MAX_PATH]{};
+	TCHAR szID[MAX_PATH]{};
+
+	ReadFile(hFile, &iTemp, sizeof(int), &dwbyte, nullptr);
+	ReadFile(hFile, szPath, iTemp, &dwbyte, nullptr);
+	ReadFile(hFile, &iTemp, sizeof(int), &dwbyte, nullptr);
+	ReadFile(hFile, szFile, iTemp, &dwbyte, nullptr);
+	ReadFile(hFile, &iTemp, sizeof(int), &dwbyte, nullptr);
+	ReadFile(hFile, szID, iTemp, &dwbyte, nullptr);
+	ReadFile(hFile, &iTemp, sizeof(int), &dwbyte, nullptr);
+
+	CloseHandle(hFile);
+
+	path_ORDSaveFile = szPath;
+
+	Save_SaveFileName = szFile;
+	Save_UserID = szID;
+	Save_ClearCount = iTemp;
+
+	return true;
+}
+
+bool GetNewestData()
+{
+	CString newPath = path_ORDSaveFile;
+	newPath += "*.txt";
+
+	// ê²½ë¡œ ê²€ìƒ‰
+	CFileFind finder;
+	BOOL bExist = finder.FindFile(newPath);
+	// íƒìƒ‰ ê²°ê³¼ ì—†ìŒ
+	if (bExist == false) return false; 
+	
+	while (bExist) 
+	{
+		bExist = finder.FindNextFile();
+
+		// íŒŒì¼ ì´ë¦„
+		CString strTemp = finder.GetFileTitle();
+		wcout << (const TCHAR*)strTemp << endl;
+
+		if (strTemp.Find(Save_SaveFileName) == -1)
+		{
+			continue;
+		}
+		else
+		{
+			// ì„¸ì´ë¸Œ ì¹´ìš´íŠ¸ ê²€ì‚¬
+			strTemp.Replace(Save_SaveFileName, CString(" "));
+			int iCurSaves = _ttoi(strTemp);
+			cout << iCurSaves << " clear" << endl;
+
+			if (Save_ClearCount > iCurSaves)
+			{
+				continue;
+			}
+			else
+			{
+				cout << "Newest! : " << iCurSaves << endl;
+				Save_ClearCount = iCurSaves;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool Load_ORDSaveFile(CString& FullPath)
+{
+	wcout << "ê²½ë¡œ : " << (const TCHAR*)FullPath << endl << endl;
 
 	string strText;
 	string line;
-	ifstream file(fullpath); 
-	if (file.is_open()) {
-		while (getline(file, line)) {
-			cout << line << endl;
-			if (line.find("-") != string::npos)
-			{
-				int index_begin = line.find("-");
-				strText = line.substr(index_begin, 17);
-			}
+	ifstream file(FullPath);
+
+	string codeBegin("( \"-");
+	string codeEnd("\" )");
+
+	int i = 0;
+	int j = 0;
+
+	bool IsSucess = file.is_open();
+	if (IsSucess == false) return false;
+	while (getline(file, line)) {
+		cout << line << endl;
+		if (line.find("-") != string::npos)
+		{
+			int index_begin = line.find(codeBegin) + 3;
+			int index_end = line.find(codeEnd);
+			strText = line.substr(index_begin, index_end - index_begin);
 		}
-		file.close(); 
-	}
-	else {
-		cout << "Unable to open file";
-		return;
 	}
 
-	cout << "¼¼ÀÌºê ÄÚµå¸¦ ºÒ·¯¿Ô½À´Ï´Ù." << endl;
-	cout << strText << endl;
+	cout << "ë¶ˆëŸ¬ì˜¨ ì½”ë“œ : " << strText << endl;
 
-	// Å¬¸³ º¸µå º¹»ç
+	// í´ë¦½ ë³´ë“œ ë³µì‚¬
 	::OpenClipboard(NULL);
 	EmptyClipboard();
 
@@ -359,4 +401,38 @@ void Load(CString* FullPath)
 	GlobalUnlock(hglbCopy);
 	::SetClipboardData(CF_TEXT, mem);
 	CloseClipboard();
+
+	return true;
+}
+
+bool Save_UserInfo()
+{
+	CString Path = path_ProgramExist;
+	Path += "\\ìœ ì €ì •ë³´.txt";
+	HANDLE hFile = CreateFile(Path.GetString(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+
+	if (INVALID_HANDLE_VALUE == hFile) return false;
+
+	// ê²½ë¡œ ë§Œë“¤ê¸°	
+	CString saves;
+	saves.Format(_T("%d"), Save_ClearCount);
+
+	CString text = L"ID : ";
+	text += Save_UserID;
+	text += L" / Clears : ";
+	text += saves;
+
+	TCHAR szText[MAX_PATH]{};
+
+	TCHAR* pP = text.GetBuffer(text.GetLength());
+	_tcscpy_s(szText, MAX_PATH, pP);
+	text.ReleaseBuffer();
+
+	DWORD dwbyte = 0;
+	int iSize = (MAX_PATH * sizeof(TCHAR));
+	WriteFile(hFile, szText, iSize, &dwbyte, nullptr);
+
+	CloseHandle(hFile);
+
+	return true;
 }
